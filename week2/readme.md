@@ -366,9 +366,38 @@ SINBE THE RELEASE OF THE FIRST NOVEL, HARRY POTTER AND THE PHILOSOPHER'S STONE, 
 
 - Tới đây ta có thể đọc được kha khá và có thể hoàn thành mapping.
 
+```py
+from collections import Counter
+
+ciphertext = """◔◆●□⊟ ◕◇⊟ ◓⊟◍⊟∆◔⊟ ◐⊠ ◕◇⊟ ⊠◆◓◔◕ ●◐✦⊟◍, ◇∆◓◓✪ ◑◐◕◕⊟◓ ∆●⊞ ◕◇⊟ ◑◇◆◍◐◔◐◑◇⊟◓'◔ ◔◕◐●⊟, ◐● 26 ◉★●⊟ 1997, ◕◇⊟ ⊡◐◐○◔ ◇∆✦⊟ ⊠◐★●⊞ ◆◎◎⊟●◔⊟ ◑◐◑★◍∆◓◆◕✪ ∆●⊞ □◐◎◎⊟◓□◆∆◍ ◔★□□⊟◔◔ ✧◐◓◍⊞✧◆⊞⊟. ◕◇⊟✪ ◇∆✦⊟ ∆◕◕◓∆□◕⊟⊞ ∆ ✧◆⊞⊟ ∆⊞★◍◕ ∆★⊞◆⊟●□⊟ ∆◔ ✧⊟◍◍ ∆◔ ✪◐★●◈⊟◓ ◓⊟∆⊞⊟◓◔ ∆●⊞ ∆◓⊟ ✧◆⊞⊟◍✪ □◐●◔◆⊞⊟◓⊟⊞ □◐◓●⊟◓◔◕◐●⊟◔ ◐⊠ ◎◐⊞⊟◓● ◍◆◕⊟◓∆◕★◓⊟,[3][4] ◕◇◐★◈◇ ◕◇⊟ ⊡◐◐○◔ ◇∆✦⊟ ◓⊟□⊟◆✦⊟⊞ ◎◆✩⊟⊞ ◓⊟✦◆⊟✧◔ ⊠◓◐◎ □◓◆◕◆□◔ ∆●⊞ ◍◆◕⊟◓∆◓✪ ◔□◇◐◍∆◓◔. ∆◔ ◐⊠ ⊠⊟⊡◓★∆◓✪ 2023, ◕◇⊟ ⊡◐◐○◔ ◇∆✦⊟ ◔◐◍⊞ ◎◐◓⊟ ◕◇∆● 600 ◎◆◍◍◆◐● □◐◑◆⊟◔ ✧◐◓◍⊞✧◆⊞⊟, ◎∆○◆●◈ ◕◇⊟◎ ◕◇⊟ ⊡⊟◔◕-◔⊟◍◍◆●◈ ⊡◐◐○ ◔⊟◓◆⊟◔ ◆● ◇◆◔◕◐◓✪, ∆✦∆◆◍∆⊡◍⊟ ◆● ⊞◐✫⊟●◔ ◐⊠ ◍∆●◈★∆◈⊟◔. ◕◇⊟ ◍∆◔◕ ⊠◐★◓ ⊡◐◐○◔ ∆◍◍ ◔⊟◕ ◓⊟□◐◓⊞◔ ∆◔ ◕◇⊟ ⊠∆◔◕⊟◔◕-◔⊟◍◍◆●◈ ⊡◐◐○◔ ◆● ◇◆◔◕◐◓✪, ✧◆◕◇ ◕◇⊟ ⊠◆●∆◍ ◆●◔◕∆◍◎⊟●◕ ◔⊟◍◍◆●◈ ◓◐★◈◇◍✪ 2.7 ◎◆◍◍◆◐● □◐◑◆⊟◔ ◆● ◕◇⊟ ★●◆◕⊟⊞ ○◆●◈⊞◐◎ ∆●⊞ 8.3 ◎◆◍◍◆◐● □◐◑◆⊟◔ ◆● ◕◇⊟ ★●◆◕⊟⊞ ◔◕∆◕⊟◔ ✧◆◕◇◆● ◕✧⊟●◕✪-⊠◐★◓ ◇◐★◓◔ ◐⊠ ◆◕◔ ◓⊟◍⊟∆◔⊟. ◆◕ ◇◐◍⊞◔ ◕◇⊟ ◈★◆●●⊟◔◔ ✧◐◓◍⊞ ◓⊟□◐◓⊞ ⊠◐◓ ⊡⊟◔◕-◔⊟◍◍◆●◈ ⊡◐◐○ ◔⊟◓◆⊟◔ ⊠◐◓ □◇◆◍⊞◓⊟●."""
+
+cipher_symbols = "◔◆●□⊟◕◇◓◍∆◐⊠✧◑◎★◉⊞◈✪⊡○✦✩✫"  
+
+english_freq = "SINCETHRLAOFWPMUJDGYBKVXZQ"
+
+mapping = {cipher_symbols[i]: english_freq[i] for i in range(len(cipher_symbols))}
+
+counter = Counter(ciphertext)
+for ch in [' ', '\n']:
+    counter.pop(ch, None)
+
+print("Frequency")
+for sym, freq in counter.most_common():
+    print(f"{sym} : {freq}")
+
+print("\nMapping")
+for sym, eng in mapping.items():
+    print(f"{sym} -> {eng}")
+
+decoded = "".join(mapping.get(ch, ch) for ch in ciphertext)
+print("\nDecoded\n")
+print(decoded)
+```
+
 ```
 SINCE THE RELEASE OF THE FIRST NOVEL, HARRY POTTER AND THE PHILOSOPHER'S STONE, ON 26 JUNE 1997, THE BOOKS HAVE FOUND IMMENSE POPULARITY AND COMMERCIAL SUCCESS WORLDWIDE. THEY HAVE ATTRACTED A WIDE ADULT AUDIENCE AS WELL AS YOUNGER READERS AND ARE WIDELY CONSIDERED CORNERSTONES OF MODERN LITERATURE,[3][4] THOUGH THE BOOKS HAVE RECEIVED MIXED REVIEWS FROM CRITICS AND LITERARY SCHOLARS. AS OF FEBRUARY 2023, THE BOOKS HAVE SOLD MORE THAN 600 MILLION COPIES WORLDWIDE, MAKING THEM THE BEST-SELLING BOOK SERIES IN HISTORY, AVAILABLE IN DOZENS OF LANGUAGES. THE LAST FOUR BOOKS ALL SET RECORDS AS THE FASTEST-SELLING BOOKS IN HISTORY, WITH THE FINAL INSTALMENT SELLING ROUGHLY 2.7 MILLION COPIES IN THE UNITED KINGDOM AND 8.3 MILLION COPIES IN THE UNITED STATES WITHIN TWENTY-FOUR HOURS OF ITS RELEASE. IT HOLDS THE GUINNESS WORLD RECORD FOR BEST-SELLING BOOK SERIES FOR CHILDREN.
 ```
+
 
 
 

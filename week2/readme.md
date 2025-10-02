@@ -285,9 +285,203 @@ def a1z26(text, decrypt=False):
 ```
 
 ### Rail Fence Cipher 
+- Rail Fence Cipher là một dạng transposition cipher tức là nó không thay đổi ký tự gốc mà chỉ xáo trộn vị trí của chúng dựa trên một quy luật nhất định.
+- Cách hoạt động:
+```
+plaintext: im harry potter
+```
+- Ta viết chữ theo kiểu zig-zag xuống 3 hàng:
+```
+i . . . r . . . o . . . r 
+. m . a . r . p . t . e . 
+. . h . . . y . . . t . . 
+```
+- Sau đó ta đọc theo từng hàng:
+```
+ciphertext: irormarptehyt 
+```
+
+##### Encrypt 
+```py
+def rail_fence_encrypt(text: str, rails: int) -> str:
+    text = text.replace(" ", "").upper()
+    fence = [[] for _ in range(rails)]
+    rail = 0
+    var = 1
+    for ch in text:
+        fence[rail].append(ch)
+        rail += var
+        if rail == 0 or rail == rails - 1:
+            var = -var
+    return ''.join(''.join(row) for row in fence)
+```
+- rails chính là số hàng.
+
+##### Decrypt
+```py
+def rail_fence_decrypt(cipher: str, rails: int) -> str:
+    cipher = cipher.upper()
+    # Build zigzag pattern indices
+    pattern = list(range(rails)) + list(range(rails-2, 0, -1))
+    pat_len = len(pattern)
+    n = len(cipher)
+    indices = [pattern[i % pat_len] for i in range(n)]
+    # Count letters per rail
+    rail_counts = [indices.count(r) for r in range(rails)]
+    # Split cipher into rails
+    pos = 0
+    rail_strs = []
+    for count in rail_counts:
+        rail_strs.append(list(cipher[pos:pos+count]))
+        pos += count
+    # Reconstruct
+    result = []
+    rail_positions = [0]*rails
+    for r in indices:
+        result.append(rail_strs[r][rail_positions[r]])
+        rail_positions[r] += 1
+    return ''.join(result)
+```
+- Để phá mà không biết rails thì chỉ cần bruteforce từng rail một cho tới khi có nghĩa.
+
 ### Columnar Transposition
+- Columnar Transposition Cipher cũng thuộc kiểu transposition cipher, nó dựa trên một bảng và một khóa là thứ tự sắp xếp các cột.
+- Cách hoạt động:
+```
+key = login
+      35124
+```
+- Chọn một khoá và gán số thứ tự theo thứ tự bảng chữ cái.
+
+```
+plaintext: im not harry potter
+```
+- Với khóa `login` có 5 kí tự ta viết 5 cột.
+
+```
+i m n o t
+h a r r y
+p o t t e
+r x x x x
+```
+
+- Nếu thiểu thì padding thêm vào, ở đây là padding `x`.
+- Đọc từng cột theo thứ tự ưu tiên của khóa.
+```
+plaintext: nrtx ortx ihpr tyex maox 
+```
+
+##### Encrypt
+```py
+def columnar_encrypt(text: str, key: str) -> str:
+    text = text.replace(" ", "").upper()
+    key = key.upper()
+    ncols = len(key)
+    nrows = math.ceil(len(text) / ncols)
+    # pad with X
+    padded = text.ljust(nrows*ncols, 'X')
+    # build matrix
+    matrix = [list(padded[i*ncols:(i+1)*ncols]) for i in range(nrows)]
+    # order columns by key
+    order = sorted(range(len(key)), key=lambda i: key[i])
+    out = []
+    for c in order:
+        for r in range(nrows):
+            out.append(matrix[r][c])
+    return ''.join(out)
+```
+
+##### Decrypt 
+```py
+def columnar_decrypt(cipher: str, key: str) -> str:
+    key = key.upper()
+    ncols = len(key)
+    nrows = math.ceil(len(cipher) / ncols)
+    order = sorted(range(len(key)), key=lambda i: key[i])
+    # allocate matrix
+    matrix = [[None]*ncols for _ in range(nrows)]
+    pos = 0
+    for c in order:
+        for r in range(nrows):
+            if pos < len(cipher):
+                matrix[r][c] = cipher[pos]
+                pos += 1
+    # read row-wise
+    out = ''.join(matrix[r][c] for r in range(nrows) for c in range(ncols))
+    return out.rstrip('X')
+```
+
 ### Scytale Cipher
+- Scytale Cipher có cách encrypt khá giống Columnar Tranposition, tạo bảng tương tự. Nhưng sẽ đọc từng cột một từ trái sang phải.
+```
+plaintext = im not harry potter
+i m n o t
+h a r r y
+p o t t e
+r x x x x
+-> ciphertext = ihpr maox nrtx ortx tyex
+```
+
+##### Encrypt
+```py
+def scytale_encrypt(text: str, diameter: int) -> str:
+    text = text.replace(" ", "").upper()
+    nrows = math.ceil(len(text) / diameter)
+    padded = text.ljust(nrows*diameter, 'X')
+    out = []
+    for c in range(diameter):
+        for r in range(nrows):
+            out.append(padded[r*diameter + c])
+    return ''.join(out)
+```
+
+##### Decrypt 
+```py
+def scytale_decrypt(cipher: str, diameter: int) -> str:
+    nrows = math.ceil(len(cipher) / diameter)
+    out = []
+    pos = 0
+    grid = [[None]*diameter for _ in range(nrows)]
+    for c in range(diameter):
+        for r in range(nrows):
+            if pos < len(cipher):
+                grid[r][c] = cipher[pos]
+                pos += 1
+    for r in range(nrows):
+        for c in range(diameter):
+            if grid[r][c]:
+                out.append(grid[r][c])
+    return ''.join(out).rstrip('X')
+```
+
 ### Vigenère Cipher
+- Vigenère Cipher là một dạng polyalphabetic substitution cipher. Nó được mã hóa bằng hàm `F(x) = (idx(x) + shift) mod 26`. Với `idx(x)` là chỉ số của kí tự `x` trong bảng chữ cái và `shift` là giá trị `idx(key)` biến đổi.
+
+##### Encrypt && Decrypt
+```py
+def vigenere(text: str, key: str, decrypt: bool = False) -> str:
+    key = ''.join(ch for ch in key.upper() if ch in ALPHABET)
+    if not key:
+        raise ValueError("Key must contain alphabetic characters.")
+    key_indices = [ALPHABET.index(k) for k in key]
+    result = []
+    j = 0
+    for ch in text.upper():
+        if ch in ALPHABET:
+            shift = key_indices[j % len(key_indices)]
+            if decrypt:
+                shift = -shift
+            idx = (ALPHABET.index(ch) + shift) % M
+            result.append(ALPHABET[idx])
+            j += 1
+        else:
+            result.append(ch)
+    return ''.join(result)
+```
+- 
+
+
+
 ### Beaufort Cipher
 ### Autokey Cipher
 ### Playfair Cipher
@@ -397,6 +591,7 @@ print(decoded)
 ```
 SINCE THE RELEASE OF THE FIRST NOVEL, HARRY POTTER AND THE PHILOSOPHER'S STONE, ON 26 JUNE 1997, THE BOOKS HAVE FOUND IMMENSE POPULARITY AND COMMERCIAL SUCCESS WORLDWIDE. THEY HAVE ATTRACTED A WIDE ADULT AUDIENCE AS WELL AS YOUNGER READERS AND ARE WIDELY CONSIDERED CORNERSTONES OF MODERN LITERATURE,[3][4] THOUGH THE BOOKS HAVE RECEIVED MIXED REVIEWS FROM CRITICS AND LITERARY SCHOLARS. AS OF FEBRUARY 2023, THE BOOKS HAVE SOLD MORE THAN 600 MILLION COPIES WORLDWIDE, MAKING THEM THE BEST-SELLING BOOK SERIES IN HISTORY, AVAILABLE IN DOZENS OF LANGUAGES. THE LAST FOUR BOOKS ALL SET RECORDS AS THE FASTEST-SELLING BOOKS IN HISTORY, WITH THE FINAL INSTALMENT SELLING ROUGHLY 2.7 MILLION COPIES IN THE UNITED KINGDOM AND 8.3 MILLION COPIES IN THE UNITED STATES WITHIN TWENTY-FOUR HOURS OF ITS RELEASE. IT HOLDS THE GUINNESS WORLD RECORD FOR BEST-SELLING BOOK SERIES FOR CHILDREN.
 ```
+
 
 
 

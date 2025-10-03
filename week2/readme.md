@@ -478,15 +478,228 @@ def vigenere(text: str, key: str, decrypt: bool = False) -> str:
             result.append(ch)
     return ''.join(result)
 ```
-- 
-
-
 
 ### Beaufort Cipher
-### Autokey Cipher
-### Playfair Cipher
-### Hill Cipher
+- Beaufort Cipher là một dạng mã hoán vị ký tự đối xứng rất giống với Vigenère cipher nhưng khác công thức `F(x) = (shift - idx(x)) mod 26`.
 
+##### Encrypt && Decrypt 
+```py
+def beaufort(text: str, key: str) -> str:
+    key = ''.join(ch for ch in key.upper() if ch in ALPHABET)
+    if not key:
+        raise ValueError("Key must contain alphabetic characters.")
+    key_indices = [ALPHABET.index(k) for k in key]
+    result = []
+    j = 0
+    for ch in text.upper():
+        if ch in ALPHABET:
+            shift = key_indices[j % len(key_indices)]
+            idx = (shift - ALPHABET.index(ch)) % M
+            result.append(ALPHABET[idx])
+            j += 1
+        else:
+            result.append(ch)
+    return ''.join(result)
+```
+- Beaufort giải mã dùng đúng cùng một thuật toán như mã hóa, chỉ cần sử dụng đúng key lên ciphertext sẽ được plaintext.
+
+### Autokey Cipher
+- Autokey Cipher là một dạng cải tiến của Vigenère cipher, có thể khắc phục điểm yếu của Vigenère cipher là khóa sẽ lặp lại.
+- Thay vì lặp lại khóa nhiều lần, Autokey cipher sẽ nối thêm phần plaintext (hoặc ciphertext) vào sau khóa để kéo dài nó → từ đó giảm tính lặp, khó bị phân tích tần suất và phá hơn.
+
+##### Encrypt && Decrypt
+```py
+def autokey(text: str, key: str, decrypt: bool = False) -> str:
+    text = text.upper()
+    key = ''.join(ch for ch in key.upper() if ch in ALPHABET)
+    if not key:
+        raise ValueError("Key must contain alphabetic characters.")
+    result = []
+
+    if decrypt:
+        # Decryption: recover plaintext progressively
+        j = 0
+        recovered = []
+        for ch in text:
+            if ch in ALPHABET:
+                shift = ALPHABET.index(key[j]) if j < len(key) else ALPHABET.index(recovered[j - len(key)])
+                p_idx = (ALPHABET.index(ch) - shift) % M
+                p = ALPHABET[p_idx]
+                recovered.append(p)
+                j += 1
+            else:
+                recovered.append(ch)
+        return ''.join(recovered)
+    else:
+        # Encryption: use key followed by plaintext as running key
+        j = 0
+        running = list(key)
+        out = []
+        for i, ch in enumerate(text):
+            if ch in ALPHABET:
+                shift = ALPHABET.index(running[j])
+                c_idx = (ALPHABET.index(ch) + shift) % M
+                out.append(ALPHABET[c_idx])
+                running.append(ch)  # plaintext extends the running key
+                j += 1
+            else:
+                out.append(ch)
+        return ''.join(out)
+```
+- Nếu biết một phần plaintext, có thể tái tạo phần còn lại của key → có thể phá được (known plaintext attack).
+
+### Playfair Cipher
+- Playfair cipher là một loại mã hóa cổ điển theo khối, tức là mã hóa từng cặp chữ cái một lúc, không phải từng chữ cái riêng lẻ như Caesar hay Vigenère.
+- Thay vì dùng bảng chữ cái tuyến tính, Playfair cipher sử dụng một ma trận 5×5 chứa 25 chữ cái (I và J gộp làm một).
+- Chọn một từ khóa
+```
+key: monarchy
+M O N A R
+C H Y B D
+E F G I K
+L P Q S T
+U V W X Z
+```
+- Viết key vào bảng bỏ các kí tự trùng và điền các chữ cái còn thiếu.
+
+```
+plaintext: HIDETHEGOLDINTHETREESTUMP
+tách thành các cặp chữ:
+HI DE TH EG OL DI NT HE TR EE ST UM P
+```
+- Nếu gặp hai chữ cái giống nhau trong cùng cặp thì lấy 1 chữ và thêm chữ X phía sau.
+- Cùng hàng → Thay mỗi chữ bằng chữ bên phải nó, vòng lại nếu ở cuối hàng.
+- Cùng cột → Thay mỗi chữ bằng chữ phía dưới nó, vòng lại nếu ở cuối cột.
+- Khác hàng và cột → Tạo hình chữ nhật → mỗi chữ thay bằng chữ ở cùng hàng nhưng cùng cột với chữ còn lại.
+
+```
+Ví dụ:
+M O N A R
+C H Y B D
+E F G I K
+L P Q S T
+U V W X Z
+```
+- Với cặp `HI` H ở hàng 2, cột 2; I ở hàng 3, cột 4 → Mã hóa thành: B (hàng H, cột I) và F (hàng I, cột H)
+→ HI → BF
+
+- Vậy với `plaintext: HI DE TH EG OL DI NT HE TR EE ST UM PX` ta được `ciphertext: BF OD QH EG PN AL ZT BF WQ FC RU DT ZB`
+-> HIDETHEGOLDINTHETREESTUMP -> BFODQHEGPNALZTBFWQFCRUDTZB
+
+##### Encrypt 
+```py
+# Uses 5x5 square combining I/J into one cell (I)
+
+def build_playfair_square(key: str) -> List[List[str]]:
+    # clean key: uppercase, remove non-letters, map J->I, remove duplicates
+    key = key.upper()
+    filtered = []
+    for ch in key:
+        if ch == 'J':
+            ch = 'I'
+        if ch in ALPHABET and ch not in filtered:
+            filtered.append(ch)
+    # fill rest of alphabet (skip J)
+    for ch in ALPHABET:
+        if ch == 'J':
+            continue
+        if ch not in filtered:
+            filtered.append(ch)
+    # build 5x5
+    square = [filtered[i*5:(i+1)*5] for i in range(5)]
+    return square
+
+
+def playfair_preprocess(text: str) -> List[str]:
+    # remove non-letters, map J->I, split into digraphs with X padding
+    cleaned = []
+    for ch in text.upper():
+        if ch in ALPHABET:
+            if ch == 'J':
+                cleaned.append('I')
+            else:
+                cleaned.append(ch)
+    digraphs = []
+    i = 0
+    while i < len(cleaned):
+        a = cleaned[i]
+        b = cleaned[i+1] if i+1 < len(cleaned) else None
+        if b is None:
+            digraphs.append(a + 'X')
+            i += 1
+        elif a == b:
+            digraphs.append(a + 'X')
+            i += 1
+        else:
+            digraphs.append(a + b)
+            i += 2
+    return digraphs
+
+
+def find_in_square(square: List[List[str]], ch: str):
+    for r in range(5):
+        for c in range(5):
+            if square[r][c] == ch:
+                return r, c
+    raise ValueError(f"Character {ch} not found in Playfair square")
+
+
+def playfair_encrypt(text: str, key: str) -> str:
+    square = build_playfair_square(key)
+    digraphs = playfair_preprocess(text)
+    out = []
+    for pair in digraphs:
+        a, b = pair[0], pair[1]
+        r1, c1 = find_in_square(square, a)
+        r2, c2 = find_in_square(square, b)
+        if r1 == r2:
+            # same row -> take right
+            out.append(square[r1][(c1 + 1) % 5])
+            out.append(square[r2][(c2 + 1) % 5])
+        elif c1 == c2:
+            # same column -> take below
+            out.append(square[(r1 + 1) % 5][c1])
+            out.append(square[(r2 + 1) % 5][c2])
+        else:
+            # rectangle
+            out.append(square[r1][c2])
+            out.append(square[r2][c1])
+    return ''.join(out)
+
+```
+
+##### Decrypt 
+```py
+def playfair_decrypt(text: str, key: str) -> str:
+    square = build_playfair_square(key)
+    # assume cipher text is in correct digraphs (even length)
+    cleaned = [ch for ch in text.upper() if ch in ALPHABET]
+    if len(cleaned) % 2 != 0:
+        raise ValueError("Playfair ciphertext length must be even")
+    out = []
+    for i in range(0, len(cleaned), 2):
+        a = cleaned[i]
+        b = cleaned[i+1]
+        r1, c1 = find_in_square(square, a)
+        r2, c2 = find_in_square(square, b)
+        if r1 == r2:
+            out.append(square[r1][(c1 - 1) % 5])
+            out.append(square[r2][(c2 - 1) % 5])
+        elif c1 == c2:
+            out.append(square[(r1 - 1) % 5][c1])
+            out.append(square[(r2 - 1) % 5][c2])
+        else:
+            out.append(square[r1][c2])
+            out.append(square[r2][c1])
+    return ''.join(out)
+```
+Giải mã dùng quy tắc ngược lại:
+- Cùng hàng → sang trái
+- Cùng cột → lên trên
+- Hình chữ nhật → lấy chữ cùng hàng, cột đối diện (ngược chiều với mã hóa)
+
+### Hill Cipher
+- Hill cipher là một loại mã hóa khối tuyến tính
 ### Breaking Text
 ```
 ◔◆●□⊟ ◕◇⊟ ◓⊟◍⊟∆◔⊟ ◐⊠ ◕◇⊟ ⊠◆◓◔◕ ●◐✦⊟◍, ◇∆◓◓✪ ◑◐◕◕⊟◓ ∆●⊞ ◕◇⊟ ◑◇◆◍◐◔◐◑◇⊟◓'◔ ◔◕◐●⊟, ◐● 26 ◉★●⊟ 1997, ◕◇⊟ ⊡◐◐○◔ ◇∆✦⊟ ⊠◐★●⊞ ◆◎◎⊟●◔⊟ ◑◐◑★◍∆◓◆◕✪ ∆●⊞ □◐◎◎⊟◓□◆∆◍ ◔★□□⊟◔◔ ✧◐◓◍⊞✧◆⊞⊟. ◕◇⊟✪ ◇∆✦⊟ ∆◕◕◓∆□◕⊟⊞ ∆ ✧◆⊞⊟ ∆⊞★◍◕ ∆★⊞◆⊟●□⊟ ∆◔ ✧⊟◍◍ ∆◔ ✪◐★●◈⊟◓ ◓⊟∆⊞⊟◓◔ ∆●⊞ ∆◓⊟ ✧◆⊞⊟◍✪ □◐●◔◆⊞⊟◓⊟⊞ □◐◓●⊟◓◔◕◐●⊟◔ ◐⊠ ◎◐⊞⊟◓● ◍◆◕⊟◓∆◕★◓⊟,[3][4] ◕◇◐★◈◇ ◕◇⊟ ⊡◐◐○◔ ◇∆✦⊟ ◓⊟□⊟◆✦⊟⊞ ◎◆✩⊟⊞ ◓⊟✦◆⊟✧◔ ⊠◓◐◎ □◓◆◕◆□◔ ∆●⊞ ◍◆◕⊟◓∆◓✪ ◔□◇◐◍∆◓◔. ∆◔ ◐⊠ ⊠⊟⊡◓★∆◓✪ 2023, ◕◇⊟ ⊡◐◐○◔ ◇∆✦⊟ ◔◐◍⊞ ◎◐◓⊟ ◕◇∆● 600 ◎◆◍◍◆◐● □◐◑◆⊟◔ ✧◐◓◍⊞✧◆⊞⊟, ◎∆○◆●◈ ◕◇⊟◎ ◕◇⊟ ⊡⊟◔◕-◔⊟◍◍◆●◈ ⊡◐◐○ ◔⊟◓◆⊟◔ ◆● ◇◆◔◕◐◓✪, ∆✦∆◆◍∆⊡◍⊟ ◆● ⊞◐✫⊟●◔ ◐⊠ ◍∆●◈★∆◈⊟◔. ◕◇⊟ ◍∆◔◕ ⊠◐★◓ ⊡◐◐○◔ ∆◍◍ ◔⊟◕ ◓⊟□◐◓⊞◔ ∆◔ ◕◇⊟ ⊠∆◔◕⊟◔◕-◔⊟◍◍◆●◈ ⊡◐◐○◔ ◆● ◇◆◔◕◐◓✪, ✧◆◕◇ ◕◇⊟ ⊠◆●∆◍ ◆●◔◕∆◍◎⊟●◕ ◔⊟◍◍◆●◈ ◓◐★◈◇◍✪ 2.7 ◎◆◍◍◆◐● □◐◑◆⊟◔ ◆● ◕◇⊟ ★●◆◕⊟⊞ ○◆●◈⊞◐◎ ∆●⊞ 8.3 ◎◆◍◍◆◐● □◐◑◆⊟◔ ◆● ◕◇⊟ ★●◆◕⊟⊞ ◔◕∆◕⊟◔ ✧◆◕◇◆● ◕✧⊟●◕✪-⊠◐★◓ ◇◐★◓◔ ◐⊠ ◆◕◔ ◓⊟◍⊟∆◔⊟. ◆◕ ◇◐◍⊞◔ ◕◇⊟ ◈★◆●●⊟◔◔ ✧◐◓◍⊞ ◓⊟□◐◓⊞ ⊠◐◓ ⊡⊟◔◕-◔⊟◍◍◆●◈ ⊡◐◐○ ◔⊟◓◆⊟◔ ⊠◐◓ □◇◆◍⊞◓⊟●.
@@ -591,6 +804,7 @@ print(decoded)
 ```
 SINCE THE RELEASE OF THE FIRST NOVEL, HARRY POTTER AND THE PHILOSOPHER'S STONE, ON 26 JUNE 1997, THE BOOKS HAVE FOUND IMMENSE POPULARITY AND COMMERCIAL SUCCESS WORLDWIDE. THEY HAVE ATTRACTED A WIDE ADULT AUDIENCE AS WELL AS YOUNGER READERS AND ARE WIDELY CONSIDERED CORNERSTONES OF MODERN LITERATURE,[3][4] THOUGH THE BOOKS HAVE RECEIVED MIXED REVIEWS FROM CRITICS AND LITERARY SCHOLARS. AS OF FEBRUARY 2023, THE BOOKS HAVE SOLD MORE THAN 600 MILLION COPIES WORLDWIDE, MAKING THEM THE BEST-SELLING BOOK SERIES IN HISTORY, AVAILABLE IN DOZENS OF LANGUAGES. THE LAST FOUR BOOKS ALL SET RECORDS AS THE FASTEST-SELLING BOOKS IN HISTORY, WITH THE FINAL INSTALMENT SELLING ROUGHLY 2.7 MILLION COPIES IN THE UNITED KINGDOM AND 8.3 MILLION COPIES IN THE UNITED STATES WITHIN TWENTY-FOUR HOURS OF ITS RELEASE. IT HOLDS THE GUINNESS WORLD RECORD FOR BEST-SELLING BOOK SERIES FOR CHILDREN.
 ```
+
 
 
 
